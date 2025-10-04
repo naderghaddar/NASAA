@@ -1,0 +1,45 @@
+import pandas as pd
+from sklearn.utils import resample
+
+# === Load your dataset ===
+df = pd.read_csv(r"C:\Users\nader\NASA\NASA\nasa_power_data.csv")
+
+# === Rename date column ===
+df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
+df["date"] = pd.to_datetime(df["date"])
+
+# === Create binary target ===
+df["Rain"] = (df["Precip (mm)"] > 0).astype(int)
+
+# === Check class imbalance before balancing ===
+print("Before balancing:")
+print(df["Rain"].value_counts(normalize=True))
+
+# === Balance the dataset (upsample no-rain days) ===
+rain = df[df["Rain"] == 1]
+norain = df[df["Rain"] == 0]
+
+norain_up = resample(
+    norain,
+    replace=True,                # sample with replacement
+    n_samples=len(rain),         # make it same size as rain samples
+    random_state=42
+)
+
+# Combine both back together and shuffle
+df_balanced = pd.concat([rain, norain_up])
+df_balanced = df_balanced.sample(frac=1, random_state=42).reset_index(drop=True)
+
+# === Verify it's balanced ===
+print("\nAfter balancing:")
+print(df_balanced["Rain"].value_counts())
+
+# === Define features and target for the new balanced data ===
+X = df_balanced[["Temp (°C)", "Humidity (%)", "Wind (m/s)"]]
+y = df_balanced["Rain"]
+
+print("\n✅ Data prepared and balanced.")
+print(df_balanced.head())
+# Save the balanced dataset for later use
+df_balanced.to_csv(r"C:\Users\nader\NASA\NASA\nasa_power_data_balanced.csv", index=False)
+print("✅ Balanced dataset saved as nasa_power_data_balanced.csv")

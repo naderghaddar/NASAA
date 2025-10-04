@@ -1,0 +1,91 @@
+import requests
+import pandas as pd
+import joblib
+import matplotlib.pyplot as plt
+import time
+
+# === 1. Load enhanced model and scaler ===
+model = joblib.load("rain_predictor_rf_calibrated.joblib")
+scaler = joblib.load("feature_scaler_calibrated.joblib")
+
+# === 2. Fetch forecast data ===
+lat, lon = 50.5019, -60.5674  # Montreal coordinates
+url = (
+    f"https://api.open-meteo.com/v1/forecast?"
+    f"latitude={lat}&longitude={lon}"
+    "&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
+    "&forecast_days=7&timezone=auto"
+)
+
+# Retry logic
+for attempt in range(3):
+    try:
+        r = requests.get(url, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+        break
+    except requests.exceptions.Timeout:
+        print(f"⏳ Timeout on attempt {attempt + 1}, retrying...")
+        time.sleep(3)
+    except requests.exceptions.RequestException as e:
+        print("❌ Request failed:", e)
+        raise SystemExit
+
+df_meteo = pd.DataFrame(data["hourly"])
+df_meteo["time"] = pd.to_datetime(df_meteo["time"])
+df_meteo.rename(columns={
+    "temperature_2m": "Temp (°C)",
+    "relative_humidity_2m": "Humidity (%)",
+    "wind_speed_10m": "Wind (m/s)"
+}, inplace=True)
+
+# === 3. Compute enhanced features ===
+df_meteo["DewPoint"] = df_meteo["Temp (°C)"] - ((100 - df_meteo["Humidity (%)"]) / 5)
+df_meteo["Wind^2"] = df_meteo["Wind (m/s)"] ** 2
+df_meteo["Month"] = df_meteo["time"].dt.month
+
+# === 4. Aggregate to daily means ===
+df_daily = (
+    df_meteo.groupby(df_meteo["time"].dt.date)[["Temp (°C)", "Humidity (%)", "Wind (m/s)", "DewPoint", "Wind^2", "Month"]]
+    .mean()
+    .reset_index()
+    .rename(columns={"time": "date"})
+)
+
+# === 5. Scale features ===
+X_future = df_daily[["Temp (°C)", "Humidity (%)", "Wind (m/s)", "DewPoint", "Wind^2", "Month"]]
+X_future_scaled = scaler.transform(X_future)
+
+# === 6. Predict probabilities ===
+probs = model.predict_proba(X_future_scaled)[:, 1]
+df_daily["RainProbability"] = probs * 100
+
+# Dynamic threshold: humidity affects it
+df_daily["PredictedRain"] = (
+    (df_daily["RainProbability"] > (60 - (df_daily["Humidity (%)"] - 70) * 0.3)).astype(int)
+)
+
+# === 7. Print summary ===
+print("\n=== Enhanced Rain Forecast for Montreal ===")
+print(df_daily[["date", "Temp (°C)", "Humidity (%)", "Wind (m/s)", "RainProbability", "PredictedRain"]])
+
+rainy_days = df_daily[df_daily["PredictedRain"] == 1]["date"].tolist()
+clear_days = df_daily[df_daily["PredictedRain"] == 0]["date"].tolist()
+
+print("\n🌧️ Days predicted with rain:", rainy_days or "None")
+print("☀️ Days predicted with NO rain:", clear_days or "None")
+
+# === 8. Plot probabilities ===
+plt.figure(figsize=(10, 5))
+plt.bar(
+    df_daily["date"],
+    df_daily["RainProbability"],
+    color=["royalblue" if r == 0 else "crimson" for r in df_daily["PredictedRain"]]
+)
+plt.title(f"Rain Probability Forecast (Calibrated Model) – Montreal ({lat}, {lon})")
+plt.xlabel("Date")
+plt.ylabel("Rain Probability (%)")
+plt.xticks(rotation=45)
+plt.grid(True, axis='y')
+plt.tight_layout()
+plt.show()

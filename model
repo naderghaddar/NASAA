@@ -1,0 +1,65 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.utils import resample
+import joblib
+
+# === 1. Load data ===
+df = pd.read_csv(r"C:\Users\nader\NASA\NASA\nasa_power_data.csv")
+
+# Fix column names if needed
+df.rename(columns={"Unnamed: 0": "date"}, inplace=True)
+df["date"] = pd.to_datetime(df["date"])
+
+# Create binary target (1 = rain)
+df["Rain"] = (df["Precip (mm)"] > 0).astype(int)
+
+# === 2. Add enhanced features ===
+df["DewPoint"] = df["Temp (°C)"] - ((100 - df["Humidity (%)"]) / 5)
+df["Wind^2"] = df["Wind (m/s)"] ** 2
+df["Month"] = df["date"].dt.month
+
+# === 3. Balance dataset ===
+df_majority = df[df.Rain == 0]
+df_minority = df[df.Rain == 1]
+
+df_minority_upsampled = resample(df_minority, 
+                                 replace=True, 
+                                 n_samples=len(df_majority), 
+                                 random_state=42)
+
+df_balanced = pd.concat([df_majority, df_minority_upsampled])
+
+# === 4. Define features and target ===
+features = ["Temp (°C)", "Humidity (%)", "Wind (m/s)", "DewPoint", "Wind^2", "Month"]
+X = df_balanced[features]
+y = df_balanced["Rain"]
+
+# === 5. Split data ===
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+
+# === 6. Scale features ===
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# === 7. Train and calibrate RandomForest ===
+rf = RandomForestClassifier(n_estimators=200, max_depth=12, random_state=42)
+calibrated_rf = CalibratedClassifierCV(rf, method='sigmoid', cv=5)
+calibrated_rf.fit(X_train_scaled, y_train)
+
+# === 8. Evaluate ===
+y_pred = calibrated_rf.predict(X_test_scaled)
+print("\n🔹 Accuracy:", accuracy_score(y_test, y_pred))
+print(confusion_matrix(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+
+# === 9. Save model and scaler ===
+joblib.dump(calibrated_rf, "rain_predictor_rf_calibrated.joblib")
+joblib.dump(scaler, "feature_scaler_calibrated.joblib")
+
+print("\n✅ Enhanced model saved as 'rain_predictor_rf_calibrated.joblib'")
+print("✅ Scaler saved as 'feature_scaler_calibrated.joblib'")

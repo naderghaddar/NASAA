@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 # Choose a location and dates
 lat, lon = 45.65, -73.38     # Toronto
-start, end = "20220709", "20220818"
+start, end = "20000709", "20220818"
 
 # ---------- 1) NASA POWER (historical/recent) ----------
 power_url = (
