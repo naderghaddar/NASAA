@@ -30,7 +30,7 @@ target_date = st.sidebar.date_input("Target date", value=dt.date.today() + dt.ti
 kc = st.sidebar.slider("Crop coefficient (Kc)", 0.6, 1.3, 1.15, 0.05)
 soil_buffer = st.sidebar.slider("Soil moisture buffer (mm)", 0, 10, 2)
 eff_rain_factor = 0.8
-start, end = "20000709", "20221231"  # 22 years of history
+start, end = "20000709", "20250831"  # 22 years of history
 
 # -------------------------------------------------------------------
 # FETCH NASA POWER DATA
