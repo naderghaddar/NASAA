@@ -28,14 +28,14 @@ export default function Landing() {
   const run = useMutation({
     mutationFn: () => {
       // Build YYYYMMDD strings
-      const endStr = form.target_date.replaceAll("-", "");
-      const startYear = String(Number(form.target_date.slice(0,4)) - 5); // last 5y
-      const startStr = startYear + endStr.slice(4); // keep same MMDD
+      //const endStr = form.target_date.replaceAll("-", "");
+      //const startYear = String(Number(form.target_date.slice(0,4)) - 25); // last 25y
+      //const startStr = startYear + endStr.slice(4); // keep same MMDD
 
       return postJSON<Resp>(API("/api/forecast-advice"), {
         ...form,
-        start: startStr,
-        end: endStr,
+        start: "20000709", //hardcoded data (last 25years)
+        end: "20250831",
       });
     },
     onSuccess: setData,
@@ -204,7 +204,7 @@ export default function Landing() {
       </section>
 
       {/* RESULTS SECTION (below the fold, light card on dark bg) */}
-      {run.isSuccess && data && (
+      {run.isSuccess && data &&  (
         <section id="results" className="px-6 lg:px-12 py-12 bg-gradient-to-b from-black to-[#0b0b0b]">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-2xl font-semibold mb-4">
