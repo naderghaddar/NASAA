@@ -1,103 +1,73 @@
-import Image from "next/image";
+"use client"
+import { useState } from "react"
+import { useMutation } from "@tanstack/react-query"
+import { API, postJSON } from "./api"
 
-export default function Home() {
+type Resp = {
+  target: string
+  prediction: { Temp: number; Humidity: number; Wind: number; Precip: number }
+  irrigation_mm: number
+  et0: number
+  etc: number
+  peff: number
+  recommendations: Record<string,string>
+}
+
+export default function Page() {
+  const [form, setForm] = useState({
+    lat: 45.65, lon: -73.38,
+    target_date: new Date(Date.now()+3*864e5).toISOString().slice(0,10),
+    kc: 1.15, soil_buffer_mm: 2, eff_rain_factor: 0.8
+  })
+  const [data, setData] = useState<Resp|null>(null)
+
+  const run = useMutation({
+    mutationFn: () => postJSON<Resp>(API("/api/forecast-advice"), {
+      ...form, start:"20000709", end:"20250831"
+    }),
+    onSuccess: setData
+  })
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="p-6 max-w-5xl mx-auto">
+      <h1 className="text-3xl font-semibold mb-4">🌾 Smart Irrigation & Advisory</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="grid md:grid-cols-6 gap-3">
+        <input className="input" value={form.lat} onChange={e=>setForm(f=>({...f, lat:+e.target.value}))} placeholder="Latitude"/>
+        <input className="input" value={form.lon} onChange={e=>setForm(f=>({...f, lon:+e.target.value}))} placeholder="Longitude"/>
+        <input className="input" type="date" value={form.target_date} onChange={e=>setForm(f=>({...f, target_date:e.target.value}))}/>
+        <input className="input" type="number" step="0.05" value={form.kc} onChange={e=>setForm(f=>({...f, kc:+e.target.value}))} placeholder="Kc"/>
+        <input className="input" type="number" value={form.soil_buffer_mm} onChange={e=>setForm(f=>({...f, soil_buffer_mm:+e.target.value}))} placeholder="Soil buffer (mm)"/>
+        <input className="input" type="number" step="0.05" value={form.eff_rain_factor} onChange={e=>setForm(f=>({...f, eff_rain_factor:+e.target.value}))} placeholder="Eff rain"/>
+      </div>
+      <button onClick={()=>run.mutate()} className="mt-3 bg-black text-white rounded-lg px-4 py-2">Generate</button>
+      <style jsx>{`.input { @apply rounded-lg border p-2 bg-white; }`}</style>
+
+      {run.isPending && <p className="mt-6">Running…</p>}
+      {data && (
+        <div className="mt-6 space-y-3">
+          <div className="rounded-xl border p-4 bg-white">
+            <div className="font-medium">Forecast for {data.target}</div>
+            <div className="grid md:grid-cols-5 gap-3 mt-2">
+              <div>🌡 Temp: <b>{data.prediction.Temp.toFixed(1)} °C</b></div>
+              <div>💧 Humidity: <b>{data.prediction.Humidity.toFixed(0)} %</b></div>
+              <div>🌬 Wind: <b>{data.prediction.Wind.toFixed(2)} m/s</b></div>
+              <div>🌦 Precip: <b>{data.prediction.Precip.toFixed(2)} mm</b></div>
+              <div>💦 Irrigation: <b>{data.irrigation_mm.toFixed(2)} mm</b> <span className="text-xs text-gray-500">(ET0 {data.et0.toFixed(2)} | ETc {data.etc.toFixed(2)} | EffRain {data.peff.toFixed(2)})</span></div>
+            </div>
+          </div>
+          <div className="rounded-xl border p-4 bg-white">
+            <div className="font-medium">Farm Advisory</div>
+            <ul className="list-disc pl-6 mt-2 space-y-1">
+              <li>{data.recommendations.irrigation}</li>
+              <li>{data.recommendations.pest}</li>
+              <li>{data.recommendations.field}</li>
+              <li>{data.recommendations.spray}</li>
+              <li>{data.recommendations.frost}</li>
+            </ul>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+      )}
+    </main>
+  )
 }
