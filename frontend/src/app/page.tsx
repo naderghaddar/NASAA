@@ -51,7 +51,7 @@ export default function Landing() {
   return (
     <main className="min-h-screen bg-black text-white">
       {/* Blue info strip (like NASA banner) */}
-      <div className="w-full bg-[#0B5FFF] text-[12px] text-white/95 text-center py-2">
+      <div className="w-full bg-[#0B5FFF] text-[10px] text-white/95 text-center py-2">
         <p>2025 NASA Space Apps Challenge : Will It Rain On My Parade?</p>
       </div>
 
@@ -69,13 +69,15 @@ export default function Landing() {
         </nav>
       </header>
 
+      
+
       {/* HERO */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden isolate">
         {/* Background image (moon/space). Put your file at /public/hero-moon.jpg */}
         <div
           className="absolute inset-0 -z-10 bg-center bg-no-repeat bg-cover opacity-80"
-          style={{ backgroundImage: "url(/hero-moon.jpg)" }}
-          aria-hidden
+          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=1950&q=80')" }}
+          aria-hidden= "true"
         />
         {/* Subtle black gradient for contrast */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/60 to-black/30" />
