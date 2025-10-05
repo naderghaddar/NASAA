@@ -11,13 +11,12 @@ from sklearn.ensemble import RandomForestRegressor
 # -------------------------------------------------------------------
 # CONFIG
 # -------------------------------------------------------------------
-st.set_page_config(page_title="Global Irrigation Planner", layout="centered")
-st.title("🌾 Global Smart Irrigation Planner")
+st.set_page_config(page_title="Global Smart Irrigation Planner", layout="wide")
+st.title("🌾 Global Smart Irrigation & Farm Advisory Dashboard")
 
 st.markdown("""
-Enter your **latitude**, **longitude**, and **target date**.  
-The app automatically downloads NASA POWER historical data for that region,  
-trains a local RandomForest model, and predicts weather & irrigation up to **6 years ahead**.
+This tool predicts **weather**, **irrigation needs**, and provides smart recommendations  
+for field work, pest alerts, frost risk, and spraying conditions — based on NASA POWER data.
 """)
 
 # -------------------------------------------------------------------
@@ -26,7 +25,7 @@ trains a local RandomForest model, and predicts weather & irrigation up to **6 y
 st.sidebar.header("Location & Parameters")
 lat = st.sidebar.number_input("Latitude (°)", -60.0, 60.0, 45.65, step=0.01)
 lon = st.sidebar.number_input("Longitude (°)", -180.0, 180.0, -73.38, step=0.01)
-target_date = st.sidebar.date_input("Target date", value=dt.date.today() + dt.timedelta(days=7))
+target_date = st.sidebar.date_input("Target date", value=dt.date.today() + dt.timedelta(days=3))
 kc = st.sidebar.slider("Crop coefficient (Kc)", 0.6, 1.3, 1.15, 0.05)
 soil_buffer = st.sidebar.slider("Soil moisture buffer (mm)", 0, 10, 2)
 eff_rain_factor = 0.8
@@ -72,7 +71,7 @@ def add_features(df):
     return out.dropna().reset_index(drop=True)
 
 # -------------------------------------------------------------------
-# MODEL TRAINING (per location)
+# MODEL TRAINING
 # -------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def train_local_models(lat, lon, start, end):
@@ -88,7 +87,7 @@ def train_local_models(lat, lon, start, end):
     return df, models
 
 # -------------------------------------------------------------------
-# FORECAST FUNCTION (6 years)
+# FORECAST FUNCTION
 # -------------------------------------------------------------------
 def forecast(df, models, target_date):
     hist = df.copy().sort_values("Date").reset_index(drop=True)
@@ -150,29 +149,92 @@ def irrigation(temp, humidity, wind, precip, lat, date, kc):
     return net, et0_val, etc, peff
 
 # -------------------------------------------------------------------
+# HELPER: FARMER ADVISORY LOGIC
+# -------------------------------------------------------------------
+def farmer_recommendations(pred_row, irr, etc, et0_val):
+    temp, hum, wind, precip = pred_row["Temp"], pred_row["Humidity"], pred_row["Wind"], pred_row["Precip"]
+    recs = {}
+
+    # Irrigation advice
+    if precip > 5:
+        recs["irrigation"] = f"💧 **Skip irrigation** — sufficient rainfall expected ({precip:.1f} mm)."
+    elif irr > 5:
+        recs["irrigation"] = f"🚜 **Irrigate**: {irr:.1f} mm recommended to meet crop needs (ETc={etc:.2f})."
+    else:
+        recs["irrigation"] = "✅ No irrigation needed — soil moisture adequate."
+
+    # Pest alert (humidity + temp combo)
+    if hum > 85 and 18 < temp < 28:
+        recs["pest"] = "🐛 **High fungal disease risk** (e.g., blight, mildew). Consider fungicide."
+    elif hum < 40:
+        recs["pest"] = "🪳 **Low pest pressure** — dry conditions reduce infestation risk."
+    else:
+        recs["pest"] = "⚠️ Moderate pest risk — monitor fields regularly."
+
+    # Field work
+    if precip > 3 or hum > 90:
+        recs["field"] = "❌ Too wet for tractor operations. Wait for drier conditions."
+    elif wind > 7:
+        recs["field"] = "🌬️ Windy — spraying or seeding not recommended."
+    else:
+        recs["field"] = "✅ Good window for field work or seeding."
+
+    # Frost risk
+    if temp < 2:
+        recs["frost"] = "❄️ **Frost risk detected** — protect seedlings or delay planting."
+    elif temp < 6:
+        recs["frost"] = "⚠️ Mild cold risk — avoid spraying overnight."
+    else:
+        recs["frost"] = "🌡️ No frost risk for this period."
+
+    # Spray window
+    if 50 < hum < 70 and wind < 5 and precip < 0.5:
+        recs["spray"] = "💉 **Excellent conditions for spraying** — low wind, dry air, no rain forecast."
+    else:
+        recs["spray"] = "🚫 Suboptimal spraying conditions."
+
+    return recs
+
+# -------------------------------------------------------------------
 # MAIN ACTION
 # -------------------------------------------------------------------
-if st.button("🌤️ Predict"):
-    with st.spinner("Fetching NASA POWER data and training local model..."):
+if st.button("🌤️ Generate Farm Forecast"):
+    with st.spinner("⏳ Fetching NASA POWER data and training model..."):
         df, models = train_local_models(lat, lon, start, end)
-    with st.spinner("Generating forecast..."):
+    with st.spinner("🔮 Generating forecast and recommendations..."):
         future = forecast(df, models, target_date)
         pred_row = future[future["Date"] == pd.Timestamp(target_date)].iloc[0]
-
         irr, et0_val, etc, peff = irrigation(
             pred_row["Temp"], pred_row["Humidity"], pred_row["Wind"],
             pred_row["Precip"], lat, target_date, kc
         )
+        recs = farmer_recommendations(pred_row, irr, etc, et0_val)
         liters = irr * 10000
 
-    st.success(f"✅ Forecast for {target_date.isoformat()} at lat={lat}, lon={lon}:")
+    # ------------------ DISPLAY -------------------
+    st.success(f"✅ Forecast for {target_date.isoformat()} at lat={lat}, lon={lon}")
+
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("🌡️ Temp (°C)", f"{pred_row['Temp']:.1f}")
+        st.metric("🌡️ Temperature (°C)", f"{pred_row['Temp']:.1f}")
         st.metric("💧 Humidity (%)", f"{pred_row['Humidity']:.0f}")
-        st.metric("🌬️ Wind (m/s)", f"{pred_row['Wind']:.2f}")
-        st.metric("🌦️ Precip (mm)", f"{pred_row['Precip']:.2f}")
+        st.metric("🌬️ Wind Speed (m/s)", f"{pred_row['Wind']:.2f}")
+        st.metric("🌦️ Precipitation (mm)", f"{pred_row['Precip']:.2f}")
     with col2:
-        st.metric("💦 Irrigation (mm)", f"{irr:.2f}")
-        st.metric("💧 Irrigation (L/ha)", f"{liters:,.0f}")
+        st.metric("💦 Irrigation Need (mm)", f"{irr:.2f}")
+        st.metric("💧 Water Volume (L/ha)", f"{liters:,.0f}")
         st.caption(f"ET₀={et0_val:.2f} | ETc={etc:.2f} | EffRain={peff:.2f}")
+
+    st.divider()
+    st.subheader("🌍 Farm Advisory Summary")
+
+    st.markdown(f"""
+    - {recs['irrigation']}
+    - {recs['pest']}
+    - {recs['field']}
+    - {recs['spray']}
+    - {recs['frost']}
+    """)
+
+    st.divider()
+    st.caption("Data source: NASA POWER • Advisory is indicative only and depends on local conditions.")
