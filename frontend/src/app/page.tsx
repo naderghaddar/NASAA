@@ -61,11 +61,9 @@ export default function Landing() {
           <div className="h-8 w-8 rounded-full bg-white/10 grid place-items-center font-bold">
             🌙
           </div>
-          <span className="text-sm text-white/70">Explore</span>
         </div>
         <div><img width="80" height="48" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/NASA-Logo.svg/2516px-NASA-Logo.svg.png" alt="Nasa" /></div>
         <nav className="hidden md:flex items-center gap-6 text-sm text-white/70">
-          <span>News & Events</span>
         </nav>
       </header>
 
