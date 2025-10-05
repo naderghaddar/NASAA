@@ -202,15 +202,3 @@ npm run dev
 
 > If you use a Python venv, activate it in the BACKEND command or start the backend separately.
 
----
-
-## 📄 License
-
-Choose a license (e.g., MIT) and add it here.
-
----
-
-## 🙌 Credits
-
-- NASA POWER (AG community) for weather data  
-- Model design & advisory logic authored in this project
