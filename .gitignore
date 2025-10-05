@@ -1,0 +1,14 @@
+.venv/
+.venv*/
+venv/
+venv*/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Streamlit cache
+.streamlit/
