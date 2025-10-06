@@ -1,4 +1,3 @@
-# Production (Slow - not optimized) : https://nasa-challenge-app-beta.vercel.app/
 
 # 🌾 Smart Irrigation & Farm Advisory — Monorepo
 
