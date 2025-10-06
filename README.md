@@ -9,49 +9,9 @@ Turns NASA POWER weather history into:
 
 ---
 
-## 📦 Repository structure
+#######   HOW TO RUN   #######
 
-```
-.
-├─ backend/                     # FastAPI API server (Python)
-│  ├─ main.py
-│  ├─ requirements.txt
-│  ├─ start.sh / start.bat
-│  ├─ models/                   # (gitignored) saved joblib models (optional)
-│  ├─ data/                     # (gitignored) optional raw/processed files
-│  └─ services/
-│     ├─ __init__.py
-│     ├─ io.py                  # NASA POWER fetch
-│     ├─ features.py            # DOY sin/cos, lags, rolling stats
-│     ├─ model.py               # RF training + recursive daily forecast
-│     ├─ irrigation.py          # ET0 (Hargreaves), ETc, effective rainfall
-│     └─ advisory.py            # human-readable recommendations
-└─ frontend/                    # Next.js (React + TS)
-   ├─ app/
-   │  ├─ page.tsx               # UI: form + results
-   │  ├─ layout.tsx             # wraps React Query Provider
-   │  ├─ react-query-provider.tsx
-   │  └─ api.ts                 # tiny fetch helper
-   ├─ .env.local                # NEXT_PUBLIC_API_BASE=http://localhost:8000
-   ├─ package.json
-   └─ tailwind/postcss configs
-```
-
-> Legacy Streamlit files (`app.py`, `rain_visualize.py`, etc.) are not used in this monorepo.
-
----
-
-## ✅ Prerequisites
-
-- **Python** 3.10+ (3.11 recommended)  
-- **Node.js** 18+ (LTS)  
-- Internet access (backend calls NASA POWER)
-
----
-
-## 🚀 Quick start (two terminals)
-
-### Terminal A — Backend (FastAPI)
+### Open a Terminal A — Backend (FastAPI)
 
 ```bash
 cd backend
@@ -66,26 +26,9 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-Health check:  
-- Open `http://localhost:8000/health` → `{"ok": true}`  
-- API docs: `http://localhost:8000/docs`
-
-Minimal POST (in Swagger “Try it out” or curl):
-
-```json
-{
-  "lat": 45.65,
-  "lon": -73.38,
-  "target_date": "2025-07-10",
-  "kc": 1.15,
-  "soil_buffer_mm": 2,
-  "eff_rain_factor": 0.8,
-  "start": "20180101",
-  "end": "20201231"
-}
+### Open Terminal B — Frontend (Next.js)
 ```
 
-### Terminal B — Frontend (Next.js)
 
 ```bash
 cd frontend
@@ -99,45 +42,7 @@ npm run dev
 
 Open **http://localhost:3000** and submit the form to see predictions, irrigation, and advisories.
 
----
-
-## 🔌 API overview
-
-### `GET /health`
-Returns `{ "ok": true }`.
-
-### `POST /api/forecast-advice`
-**Request**
-```json
-{
-  "lat": 45.65,
-  "lon": -73.38,
-  "target_date": "YYYY-MM-DD",
-  "kc": 1.15,
-  "soil_buffer_mm": 2,
-  "eff_rain_factor": 0.8,
-  "start": "YYYYMMDD",
-  "end": "YYYYMMDD"
-}
 ```
-
-**Response (example)**
-```json
-{
-  "target": "2025-07-10",
-  "prediction": { "Temp": 19.8, "Humidity": 72.0, "Wind": 3.2, "Precip": 0.6 },
-  "irrigation_mm": 3.4,
-  "et0": 4.1,
-  "etc": 4.7,
-  "peff": 0.5,
-  "recommendations": {
-    "irrigation": "...",
-    "pest": "...",
-    "field": "...",
-    "spray": "...",
-    "frost": "..."
-  }
-}
 ```
 
 **What happens under the hood**
@@ -202,15 +107,3 @@ npm run dev
 
 > If you use a Python venv, activate it in the BACKEND command or start the backend separately.
 
----
-
-## 📄 License
-
-Choose a license (e.g., MIT) and add it here.
-
----
-
-## 🙌 Credits
-
-- NASA POWER (AG community) for weather data  
-- Model design & advisory logic authored in this project
