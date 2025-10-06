@@ -21,13 +21,16 @@ app = FastAPI(title="Farm Backend", version="1.0")
 # CORS_ORIGINS=https://your-frontend.vercel.app,http://localhost:3000
 _cors = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 origins = [o.strip() for o in _cors.split(",") if o.strip()]
+# after origins = [...]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,                      # from CORS_ORIGINS env
+    allow_origin_regex=r"https://.*\.vercel\.app",  # allow all Vercel previews/prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 # ---------- Models ----------
