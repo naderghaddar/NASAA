@@ -1,5 +1,8 @@
-# 🌾 Smart Irrigation & Farm Advisory — Monorepo
 # Production (Slow - not optimized) : https://nasa-challenge-app-beta.vercel.app/
+
+# 🌾 Smart Irrigation & Farm Advisory — Monorepo
+
+
 
 Turns NASA POWER weather history into:
 - **Daily predictions** (Temp, Humidity, Wind, Precip) via **Random Forest**
